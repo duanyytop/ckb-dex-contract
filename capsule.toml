@@ -1,0 +1,5 @@
+deployment = "deployment.toml"
+
+[[contracts]]
+name = "ckb-dex"
+template_type = "Rust"
