@@ -1,5 +1,5 @@
 [workspace]
-members = ["tests", "contracts/ckb-dex"]
+members = ["tests", "contracts/ckb-dex-contract"]
 
 [profile.release]
 overflow-checks = true
