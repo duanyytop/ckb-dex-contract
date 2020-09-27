@@ -20,7 +20,7 @@ fn build_test_context(
 ) -> (Context, TransactionView) {
     // deploy my-sudt script
     let mut context = Context::default();
-    let sudt_bin: Bytes = Loader::default().load_binary("ckb-dex");
+    let sudt_bin: Bytes = Loader::default().load_binary("ckb-dex-contract");
     let sudt_out_point = context.deploy_cell(sudt_bin);
     // deploy always_success script
     let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
