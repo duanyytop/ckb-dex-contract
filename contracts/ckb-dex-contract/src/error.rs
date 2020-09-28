@@ -7,7 +7,10 @@ pub enum Error {
     ItemMissing,
     LengthNotEnough,
     Encoding,
-    Amount,
+    // Add customized errors here...
+    WrongPubkey,
+    LoadPrefilledData,
+    RecoverPubkey,
 }
 
 impl From<SysError> for Error {
