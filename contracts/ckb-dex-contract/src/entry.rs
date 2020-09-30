@@ -20,6 +20,8 @@ use crate::error::Error;
 // Alloc 4K fast HEAP + 2M HEAP to receives PrefilledData
 default_alloc!(4 * 1024, 2048 * 1024, 64);
 
+const FEE: f32 = 0.003;
+
 fn new_blake2b() -> Blake2b {
   Blake2bBuilder::new(32)
     .personal(b"ckb-default-hash")
@@ -130,6 +132,12 @@ fn validate_order() -> Result<(), Error> {
 
   let (input_dealt_amount, _, price, order_type) = parse_order_data(input_order_data);
   let (output_dealt_amount, _, _, _) = parse_order_data(output_order_data);
+
+  if output_dealt_amount - input_dealt_amount
+    < (output_capacity - input_capacity) / (1 + FEE) / price
+  {
+    return Err(Error::SUDTAmount);
+  }
 
   Ok(())
 }
