@@ -9,7 +9,7 @@ use ckb_std::{
   ckb_types::{bytes::Bytes, prelude::*},
   debug, default_alloc,
   dynamic_loading::CKBDLContext,
-  high_level::{load_script, load_witness_args},
+  high_level::{load_cell_data, load_script, load_witness_args},
 };
 
 use blake2b_ref::{Blake2b, Blake2bBuilder};
@@ -77,7 +77,32 @@ fn validate_signature() -> Result<(), Error> {
   Ok(())
 }
 
+fn parse_order_data() -> Result<(u128, u128, u64, u8), Error> {
+  let data = load_cell_data(0, Source::Input).unwrap();
+  debug!("data is {:?}", data);
+  // dealt(u128) + undealt(u128) + price(u64) + order_type(u8)
+  if data.len() < 41 {
+    return Err(Error::DataFieldIsTooSmall);
+  }
+  let mut dealt_amount_buf = [0u8; 16];
+  let mut undealt_amount_buf = [0u8; 16];
+  let mut price_buf = [0u8; 8];
+  let mut order_type_buf = [0u8; 1];
+  dealt_amount_buf.copy_from_slice(&data[0..16]);
+  undealt_amount_buf.copy_from_slice(&data[16..32]);
+  price_buf.copy_from_slice(&data[32..40]);
+  order_type_buf.copy_from_slice(&data[40..41]);
+  Ok((
+    u128::from_be_bytes(dealt_amount_buf),
+    u128::from_be_bytes(undealt_amount_buf),
+    u64::from_be_bytes(price_buf),
+    u8::from_be_bytes(order_type_buf),
+  ))
+}
+
 fn validate_order() -> Result<(), Error> {
+  let (dealt_amount, undealt_amount, price, order_type) = parse_order_data();
+
   Ok(())
 }
 
