@@ -77,8 +77,7 @@ fn validate_signature() -> Result<(), Error> {
   Ok(())
 }
 
-fn parse_order_data() -> Result<(u128, u128, u64, u8), Error> {
-  let data = load_cell_data(0, Source::Input).unwrap();
+fn parse_order_data(data: &str) -> Result<(u128, u128, u64, u8), Error> {
   debug!("data is {:?}", data);
   // dealt(u128) + undealt(u128) + price(u64) + order_type(u8)
   if data.len() < 41 {
@@ -101,7 +100,36 @@ fn parse_order_data() -> Result<(u128, u128, u64, u8), Error> {
 }
 
 fn validate_order() -> Result<(), Error> {
-  let (dealt_amount, undealt_amount, price, order_type) = parse_order_data();
+  let script = load_script()?;
+  let args: Bytes = script.args().unpack();
+  let mut output_capacity = 0;
+
+  let tx = load_transaction().unwrap();
+
+  let mut input_capacity = String::from("0");
+  let mut input_order_data = String::from("0");
+  let len = tx.outputs().len();
+  for index in [0..len] {
+    if tx.inputs()[index].lock().args().unpack() == args {
+      input_capacity = u64::from_be_bytes(tx.inputs()[index].capacity().unpack());
+      input_order_data = tx.outputs_data()[index].unpack();
+      break;
+    }
+  }
+
+  let mut output_capacity = String::from("0");
+  let mut output_order_data = String::from("0");
+  let len = tx.outputs().len();
+  for index in [0..len] {
+    if tx.outputs()[index].lock().args().unpack() == args {
+      output_capacity = u64::from_be_bytes(tx.outputs()[index].capacity().unpack());
+      output_order_data = tx.outputs_data()[index].unpack();
+      break;
+    }
+  }
+
+  let (input_dealt_amount, _, price, order_type) = parse_order_data(input_order_data);
+  let (output_dealt_amount, _, _, _) = parse_order_data(output_order_data);
 
   Ok(())
 }
