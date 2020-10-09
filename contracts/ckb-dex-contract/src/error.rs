@@ -12,6 +12,7 @@ pub enum Error {
     LoadPrefilledData,
     RecoverPubkey,
     DataLengthOrFormatError,
+    SUDTAmount,
 }
 
 impl From<SysError> for Error {
@@ -23,6 +24,7 @@ impl From<SysError> for Error {
             LengthNotEnough(_) => Self::LengthNotEnough,
             Encoding => Self::Encoding,
             DataLengthOrFormatError => Self::DataLengthOrFormatError,
+            SUDTAmount => Self::SUDTAmount,
             Unknown(err_code) => panic!("unexpected sys error {}", err_code),
         }
     }

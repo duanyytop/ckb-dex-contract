@@ -9,7 +9,7 @@ use ckb_std::{
   ckb_types::{bytes::Bytes, prelude::*},
   debug, default_alloc,
   dynamic_loading::CKBDLContext,
-  high_level::{load_cell_data, load_script, load_witness_args},
+  high_level::{load_script, load_transaction, load_witness_args},
 };
 
 use blake2b_ref::{Blake2b, Blake2bBuilder};
@@ -80,15 +80,16 @@ fn validate_signature() -> Result<(), Error> {
 }
 
 fn parse_order_data(data: &str) -> Result<(u128, u128, u64, u8), Error> {
+  use std;
   debug!("data is {:?}", data);
   // dealt(u128) or dealt(u128) + undealt(u128) + price(u64) + order_type(u8)
-  if data.len() != 16 && data.len() != 41 {
+  if data.len() != 16 || data.len() != 41 {
     return Err(Error::DataLengthOrFormatError);
   }
   if data.len() == 16 {
     let mut dealt_amount_buf = [0u8; 16];
     dealt_amount_buf.copy_from_slice(&data[0..16]);
-    Ok((u128::from_be_bytes(dealt_amount_buf),))
+    Ok((u128::from_be_bytes(dealt_amount_buf), 0, 0, 0))
   } else {
     let mut dealt_amount_buf = [0u8; 16];
     let mut undealt_amount_buf = [0u8; 16];
