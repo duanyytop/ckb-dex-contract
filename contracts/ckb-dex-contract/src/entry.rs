@@ -81,24 +81,30 @@ fn validate_signature() -> Result<(), Error> {
 
 fn parse_order_data(data: &str) -> Result<(u128, u128, u64, u8), Error> {
   debug!("data is {:?}", data);
-  // dealt(u128) + undealt(u128) + price(u64) + order_type(u8)
-  if data.len() < 41 {
-    return Err(Error::DataFieldIsTooSmall);
+  // dealt(u128) or dealt(u128) + undealt(u128) + price(u64) + order_type(u8)
+  if data.len() != 16 && data.len() != 41 {
+    return Err(Error::DataLengthOrFormatError);
   }
-  let mut dealt_amount_buf = [0u8; 16];
-  let mut undealt_amount_buf = [0u8; 16];
-  let mut price_buf = [0u8; 8];
-  let mut order_type_buf = [0u8; 1];
-  dealt_amount_buf.copy_from_slice(&data[0..16]);
-  undealt_amount_buf.copy_from_slice(&data[16..32]);
-  price_buf.copy_from_slice(&data[32..40]);
-  order_type_buf.copy_from_slice(&data[40..41]);
-  Ok((
-    u128::from_be_bytes(dealt_amount_buf),
-    u128::from_be_bytes(undealt_amount_buf),
-    u64::from_be_bytes(price_buf),
-    u8::from_be_bytes(order_type_buf),
-  ))
+  if data.len() == 16 {
+    let mut dealt_amount_buf = [0u8; 16];
+    dealt_amount_buf.copy_from_slice(&data[0..16]);
+    Ok((u128::from_be_bytes(dealt_amount_buf),))
+  } else {
+    let mut dealt_amount_buf = [0u8; 16];
+    let mut undealt_amount_buf = [0u8; 16];
+    let mut price_buf = [0u8; 8];
+    let mut order_type_buf = [0u8; 1];
+    dealt_amount_buf.copy_from_slice(&data[0..16]);
+    undealt_amount_buf.copy_from_slice(&data[16..32]);
+    price_buf.copy_from_slice(&data[32..40]);
+    order_type_buf.copy_from_slice(&data[40..41]);
+    Ok((
+      u128::from_be_bytes(dealt_amount_buf),
+      u128::from_be_bytes(undealt_amount_buf),
+      u64::from_be_bytes(price_buf),
+      u8::from_be_bytes(order_type_buf),
+    ))
+  }
 }
 
 fn validate_order() -> Result<(), Error> {
