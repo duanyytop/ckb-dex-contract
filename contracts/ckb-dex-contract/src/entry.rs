@@ -88,7 +88,7 @@ fn parse_order_data(data: &[u8]) -> Result<(u128, u128, u64, u8), Error> {
   debug!("data is {:?}", data);
   // dealt(u128) or dealt(u128) + undealt(u128) + price(u64) + order_type(u8)
   if data.len() != SUDT_LEN || data.len() != ORDER_LEN {
-    return Err(Error::DataLengthOrFormatError);
+    return Err(Error::WrongDataLengthOrFormat);
   }
   let mut dealt_amount_buf = [0u8; 16];
   let mut undealt_amount_buf = [0u8; 16];
@@ -138,11 +138,28 @@ fn validate_order() -> Result<(), Error> {
   let (output_dealt_amount, _, _, _) = parse_order_data(&output_data_buf)?;
 
   let order_price: f32 = (price as f32) / PRICE_PARAM;
-  let diff_capacity = (output_capacity - input_capacity) as f32;
-  let diff_sudt_amount = (output_dealt_amount - input_dealt_amount) as f32;
+
+  let diff_capacity: f32;
+  let diff_sudt_amount: f32;
+
+  // Buy SUDT
+  if order_type == 0 {
+    if input_capacity < output_capacity || input_dealt_amount > output_dealt_amount {
+      return Err(Error::WrongSUDTAmount);
+    }
+    diff_capacity = (input_capacity - output_capacity) as f32;
+    diff_sudt_amount = (output_dealt_amount - input_dealt_amount) as f32;
+  } else {
+    // Sell SUDT
+    if input_capacity > output_capacity || input_dealt_amount < output_dealt_amount {
+      return Err(Error::WrongSUDTAmount);
+    }
+    diff_capacity = (output_capacity - input_capacity) as f32;
+    diff_sudt_amount = (input_dealt_amount - output_dealt_amount) as f32;
+  }
 
   if diff_sudt_amount < diff_capacity / (1.0 + FEE) / order_price {
-    return Err(Error::SUDTAmount);
+    return Err(Error::WrongSUDTAmount);
   }
 
   Ok(())
