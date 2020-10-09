@@ -9,7 +9,9 @@ use ckb_std::{
   ckb_types::{bytes::Bytes, prelude::*},
   debug, default_alloc,
   dynamic_loading::CKBDLContext,
-  high_level::{load_script, load_transaction, load_witness_args},
+  high_level::{
+    load_cell_capacity, load_cell_data, load_script, load_transaction, load_witness_args,
+  },
 };
 
 use blake2b_ref::{Blake2b, Blake2bBuilder};
@@ -21,6 +23,9 @@ use crate::error::Error;
 default_alloc!(4 * 1024, 2048 * 1024, 64);
 
 const FEE: f32 = 0.003;
+const ORDER_LEN: usize = 41;
+const SUDT_LEN: usize = 16;
+const PRICE_PARAM: f32 = 100000.0;
 
 fn new_blake2b() -> Blake2b {
   Blake2bBuilder::new(32)
@@ -79,70 +84,64 @@ fn validate_signature() -> Result<(), Error> {
   Ok(())
 }
 
-fn parse_order_data(data: &str) -> Result<(u128, u128, u64, u8), Error> {
-  use std;
+fn parse_order_data(data: &[u8]) -> Result<(u128, u128, u64, u8), Error> {
   debug!("data is {:?}", data);
   // dealt(u128) or dealt(u128) + undealt(u128) + price(u64) + order_type(u8)
-  if data.len() != 16 || data.len() != 41 {
+  if data.len() != SUDT_LEN || data.len() != ORDER_LEN {
     return Err(Error::DataLengthOrFormatError);
   }
-  if data.len() == 16 {
-    let mut dealt_amount_buf = [0u8; 16];
-    dealt_amount_buf.copy_from_slice(&data[0..16]);
-    Ok((u128::from_be_bytes(dealt_amount_buf), 0, 0, 0))
-  } else {
-    let mut dealt_amount_buf = [0u8; 16];
-    let mut undealt_amount_buf = [0u8; 16];
-    let mut price_buf = [0u8; 8];
-    let mut order_type_buf = [0u8; 1];
-    dealt_amount_buf.copy_from_slice(&data[0..16]);
+  let mut dealt_amount_buf = [0u8; 16];
+  let mut undealt_amount_buf = [0u8; 16];
+  let mut price_buf = [0u8; 8];
+  let mut order_type_buf = [0u8; 1];
+
+  dealt_amount_buf.copy_from_slice(&data[0..16]);
+  if data.len() == 41 {
     undealt_amount_buf.copy_from_slice(&data[16..32]);
     price_buf.copy_from_slice(&data[32..40]);
     order_type_buf.copy_from_slice(&data[40..41]);
-    Ok((
-      u128::from_be_bytes(dealt_amount_buf),
-      u128::from_be_bytes(undealt_amount_buf),
-      u64::from_be_bytes(price_buf),
-      u8::from_be_bytes(order_type_buf),
-    ))
   }
+  Ok((
+    u128::from_be_bytes(dealt_amount_buf),
+    u128::from_be_bytes(undealt_amount_buf),
+    u64::from_be_bytes(price_buf),
+    u8::from_be_bytes(order_type_buf),
+  ))
 }
 
 fn validate_order() -> Result<(), Error> {
   let script = load_script()?;
   let args: Bytes = script.args().unpack();
+  let tx = load_transaction().unwrap().raw();
+
+  let mut input_capacity = 0;
   let mut output_capacity = 0;
-
-  let tx = load_transaction().unwrap();
-
-  let mut input_capacity = String::from("0");
-  let mut input_order_data = String::from("0");
+  let mut input_data_buf = [0u8; ORDER_LEN];
+  let mut output_data_buf = [0u8; ORDER_LEN];
   let len = tx.outputs().len();
-  for index in [0..len] {
-    if tx.inputs()[index].lock().args().unpack() == args {
-      input_capacity = u64::from_be_bytes(tx.inputs()[index].capacity().unpack());
-      input_order_data = tx.outputs_data()[index].unpack();
+  let mut index = 0;
+  while index < len {
+    let output_lock_args = tx.outputs().get(index).unwrap().lock().args().as_bytes();
+    if &output_lock_args[0..20] == &args[0..20] {
+      input_capacity = load_cell_capacity(index, Source::Input).unwrap();
+      output_capacity = load_cell_capacity(index, Source::Output).unwrap();
+      let mut data = load_cell_data(index, Source::Input).unwrap();
+      input_data_buf.copy_from_slice(&data);
+      data = load_cell_data(index, Source::Output).unwrap();
+      output_data_buf.copy_from_slice(&data);
       break;
     }
+    index += 1;
   }
 
-  let mut output_capacity = String::from("0");
-  let mut output_order_data = String::from("0");
-  let len = tx.outputs().len();
-  for index in [0..len] {
-    if tx.outputs()[index].lock().args().unpack() == args {
-      output_capacity = u64::from_be_bytes(tx.outputs()[index].capacity().unpack());
-      output_order_data = tx.outputs_data()[index].unpack();
-      break;
-    }
-  }
+  let (input_dealt_amount, _, price, order_type) = parse_order_data(&input_data_buf)?;
+  let (output_dealt_amount, _, _, _) = parse_order_data(&output_data_buf)?;
 
-  let (input_dealt_amount, _, price, order_type) = parse_order_data(input_order_data);
-  let (output_dealt_amount, _, _, _) = parse_order_data(output_order_data);
+  let order_price: f32 = (price as f32) / PRICE_PARAM;
+  let diff_capacity = (output_capacity - input_capacity) as f32;
+  let diff_sudt_amount = (output_dealt_amount - input_dealt_amount) as f32;
 
-  if output_dealt_amount - input_dealt_amount
-    < (output_capacity - input_capacity) / (1 + FEE) / price
-  {
+  if diff_sudt_amount < diff_capacity / (1.0 + FEE) / order_price {
     return Err(Error::SUDTAmount);
   }
 
