@@ -25,7 +25,8 @@ default_alloc!(4 * 1024, 2048 * 1024, 64);
 const FEE: f32 = 0.003;
 const ORDER_LEN: usize = 41;
 const SUDT_LEN: usize = 16;
-const PRICE_PARAM: f32 = 100000.0;
+// real price * 10 ^ 10 = cell price data
+const PRICE_PARAM: f32 = 1000000000.0;
 
 fn new_blake2b() -> Blake2b {
   Blake2bBuilder::new(32)
@@ -119,8 +120,7 @@ fn validate_order() -> Result<(), Error> {
   let mut input_data_buf = [0u8; ORDER_LEN];
   let mut output_data_buf = [0u8; ORDER_LEN];
   let len = tx.outputs().len();
-  let mut index = 0;
-  while index < len {
+  for index in 0..len {
     let output_lock_args = tx.outputs().get(index).unwrap().lock().args().as_bytes();
     if &output_lock_args[0..20] == &args[0..20] {
       input_capacity = load_cell_capacity(index, Source::Input).unwrap();
@@ -132,13 +132,12 @@ fn validate_order() -> Result<(), Error> {
       output_data_buf.copy_from_slice(&data);
       break;
     }
-    index += 1;
   }
 
   let (input_dealt_amount, _, price, order_type) = parse_order_data(&input_data_buf)?;
   let (output_dealt_amount, _, _, _) = parse_order_data(&output_data_buf)?;
 
-  let order_price: f32 = (price as f32) / PRICE_PARAM;
+  let order_price: f32 = price as f32 / PRICE_PARAM;
 
   let diff_capacity: f32;
   let diff_sudt_amount: f32;
@@ -150,6 +149,10 @@ fn validate_order() -> Result<(), Error> {
     }
     diff_capacity = (input_capacity - output_capacity) as f32;
     diff_sudt_amount = (output_dealt_amount - input_dealt_amount) as f32;
+
+    if diff_sudt_amount < diff_capacity / (1.0 + FEE) / order_price {
+      return Err(Error::WrongSUDTAmount);
+    }
   } else if order_type == 1 {
     // Sell SUDT
     if input_capacity > output_capacity || input_dealt_amount < output_dealt_amount {
@@ -157,12 +160,12 @@ fn validate_order() -> Result<(), Error> {
     }
     diff_capacity = (output_capacity - input_capacity) as f32;
     diff_sudt_amount = (input_dealt_amount - output_dealt_amount) as f32;
+
+    if diff_capacity < diff_sudt_amount / (1.0 + FEE) / order_price {
+      return Err(Error::WrongSUDTAmount);
+    }
   } else {
     return Err(Error::WrongOrderType);
-  }
-
-  if diff_sudt_amount < diff_capacity / (1.0 + FEE) / order_price {
-    return Err(Error::WrongSUDTAmount);
   }
 
   Ok(())
