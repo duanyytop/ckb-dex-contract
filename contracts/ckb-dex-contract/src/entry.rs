@@ -125,6 +125,7 @@ fn validate_order() -> Result<(), Error> {
     if &output_lock_args[0..20] == &args[0..20] {
       input_capacity = load_cell_capacity(index, Source::Input).unwrap();
       output_capacity = load_cell_capacity(index, Source::Output).unwrap();
+
       let mut data = load_cell_data(index, Source::Input).unwrap();
       input_data_buf.copy_from_slice(&data);
       data = load_cell_data(index, Source::Output).unwrap();
