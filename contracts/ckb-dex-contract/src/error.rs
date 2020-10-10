@@ -13,6 +13,7 @@ pub enum Error {
     RecoverPubkey,
     WrongDataLengthOrFormat,
     WrongSUDTAmount,
+    WrongOrderType,
 }
 
 impl From<SysError> for Error {
@@ -25,6 +26,7 @@ impl From<SysError> for Error {
             Encoding => Self::Encoding,
             WrongDataLengthOrFormat => Self::WrongDataLengthOrFormat,
             WrongSUDTAmount => Self::WrongSUDTAmount,
+            WrongOrderType => Self::WrongOrderType,
             Unknown(err_code) => panic!("unexpected sys error {}", err_code),
         }
     }

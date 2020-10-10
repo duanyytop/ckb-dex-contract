@@ -149,13 +149,15 @@ fn validate_order() -> Result<(), Error> {
     }
     diff_capacity = (input_capacity - output_capacity) as f32;
     diff_sudt_amount = (output_dealt_amount - input_dealt_amount) as f32;
-  } else {
+  } else if order_type == 1 {
     // Sell SUDT
     if input_capacity > output_capacity || input_dealt_amount < output_dealt_amount {
       return Err(Error::WrongSUDTAmount);
     }
     diff_capacity = (output_capacity - input_capacity) as f32;
     diff_sudt_amount = (input_dealt_amount - output_dealt_amount) as f32;
+  } else {
+    return Err(Error::WrongOrderType);
   }
 
   if diff_sudt_amount < diff_capacity / (1.0 + FEE) / order_price {
