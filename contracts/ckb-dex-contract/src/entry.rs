@@ -26,7 +26,7 @@ const FEE: f32 = 0.003;
 const ORDER_LEN: usize = 41;
 const SUDT_LEN: usize = 16;
 // real price * 10 ^ 10 = cell price data
-const PRICE_PARAM: f32 = 1000000000.0;
+const PRICE_PARAM: f32 = 10000000000.0;
 
 fn new_blake2b() -> Blake2b {
   Blake2bBuilder::new(32)

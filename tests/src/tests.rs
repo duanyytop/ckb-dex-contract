@@ -48,7 +48,7 @@ fn build_test_context(
                 .capacity(capacity.pack())
                 .lock(dex_script.clone())
                 .build(),
-            token.to_le_bytes().to_vec().into(),
+            inputs_data.get(index).unwrap().clone(),
         );
         let input = CellInput::new_builder()
             .previous_output(input_out_point)
@@ -90,81 +90,59 @@ fn build_test_context(
 }
 
 #[test]
-fn test_basic() {
-    let inputs_data = vec![Bytes::from("2a45"), Bytes::from("2a45")];
-    let outputs_data = vec![Bytes::from("2a45"), Bytes::from("2a45")];
-    let inputs_args = vec![Bytes::from("2a45"), Bytes::from("2a45")];
-    let outputs_args = vec![Bytes::from("2a45"), Bytes::from("2a45")];
+// Assume the sudt decimal is 8 and the price 5 sudt/ckb
+fn test_ckb_sudt_partial_order() {
+    // inputs data
+    // input1: dealt_amount(50sudt) + undealt_amount(150sudt) + price(5*10^10) + buy(00)
+    let mut dealt_amount = 0x12A05F200u128.to_le_bytes().to_vec();
+    let mut undealt_amount = 0x37E11D600u128.to_le_bytes().to_vec();
+    let mut price = 0xBA43B7400u64.to_le_bytes().to_vec();
+    let mut order_type = vec![0x00];
+    dealt_amount.append(&mut undealt_amount);
+    dealt_amount.append(&mut price);
+    dealt_amount.append(&mut order_type);
+    let input1_data: &[u8] = &dealt_amount;
+
+    // input2: dealt_amount(100sudt) + undealt_amount(200sudt) + price(5*10^10) + sell(01)
+    dealt_amount = 0x2540BE400u128.to_le_bytes().to_vec();
+    undealt_amount = 0x4A817C800u128.to_le_bytes().to_vec();
+    price = 0xBA43B7400u64.to_le_bytes().to_vec();
+    order_type = vec![0x01];
+    dealt_amount.append(&mut undealt_amount);
+    dealt_amount.append(&mut price);
+    dealt_amount.append(&mut order_type);
+    let input2_data: &[u8] = &dealt_amount;
+
+    let inputs_data = vec![input1_data, input2_data];
+
+    // outputs data
+    // output1: dealt_amount(250sudt)
+    let mut dealt_amount = 0x5D21DBA00u128.to_le_bytes().to_vec();
+    let output1_data: &[u8] = &dealt_amount;
+
+    // output2: dealt_amount(250sudt) + undealt_amount(50sudt) + price(5*10^10) + sell(01)
+    dealt_amount = 0x5D21DBA00u128.to_le_bytes().to_vec();
+    undealt_amount = 0x12A05F200u128.to_le_bytes().to_vec();
+    price = 0xBA43B7400u64.to_le_bytes().to_vec();
+    order_type = vec![0x01];
+    dealt_amount.append(&mut undealt_amount);
+    dealt_amount.append(&mut price);
+    dealt_amount.append(&mut order_type);
+    let output2_data: &[u8] = &dealt_amount;
+
+    let outputs_data = vec![output1_data, output2_data];
+
+    let inputs_args = vec![
+        Bytes::from("7e7a30e75685e4d332f69220e925575dd9b84676"),
+        Bytes::from("a53ce751e2adb698ca10f8c1b8ebbee20d41a842"),
+    ];
+    let outputs_args = vec![
+        Bytes::from("7e7a30e75685e4d332f69220e925575dd9b84676"),
+        Bytes::from("a53ce751e2adb698ca10f8c1b8ebbee20d41a842"),
+    ];
     let (mut context, tx) = build_test_context(
-        vec![1000],
-        vec![400, 600],
-        inputs_data,
-        outputs_data,
-        inputs_args,
-        outputs_args,
-    );
-    let tx = context.complete_tx(tx);
-
-    // run
-    let cycles = context
-        .verify_tx(&tx, MAX_CYCLES)
-        .expect("pass verification");
-    println!("cycles: {}", cycles);
-}
-
-#[test]
-fn test_destroy_udt() {
-    let inputs_data = vec![Bytes::from("2a45"), Bytes::from("2a45")];
-    let outputs_data = vec![Bytes::from("2a45"), Bytes::from("2a45")];
-    let inputs_args = vec![Bytes::from("2a45"), Bytes::from("2a45")];
-    let outputs_args = vec![Bytes::from("2a45"), Bytes::from("2a45")];
-    let (mut context, tx) = build_test_context(
-        vec![1000],
-        vec![800, 100, 50],
-        inputs_data,
-        outputs_data,
-        inputs_args,
-        outputs_args,
-    );
-    let tx = context.complete_tx(tx);
-
-    // run
-    let cycles = context
-        .verify_tx(&tx, MAX_CYCLES)
-        .expect("pass verification");
-    println!("cycles: {}", cycles);
-}
-
-#[test]
-fn test_create_sudt_without_owner_mode() {
-    let inputs_data = vec![Bytes::from("2a45"), Bytes::from("2a45")];
-    let outputs_data = vec![Bytes::from("2a45"), Bytes::from("2a45")];
-    let inputs_args = vec![Bytes::from("2a45"), Bytes::from("2a45")];
-    let outputs_args = vec![Bytes::from("2a45"), Bytes::from("2a45")];
-    let (mut context, tx) = build_test_context(
-        vec![1000],
-        vec![1200],
-        inputs_data,
-        outputs_data,
-        inputs_args,
-        outputs_args,
-    );
-    let tx = context.complete_tx(tx);
-
-    // run
-    let err = context.verify_tx(&tx, MAX_CYCLES).unwrap_err();
-    assert_error_eq!(err, ScriptError::ValidationFailure(ERROR_AMOUNT));
-}
-
-#[test]
-fn test_create_sudt_with_owner_mode() {
-    let inputs_data = vec![Bytes::from("2a45"), Bytes::from("2a45")];
-    let outputs_data = vec![Bytes::from("2a45"), Bytes::from("2a45")];
-    let inputs_args = vec![Bytes::from("2a45"), Bytes::from("2a45")];
-    let outputs_args = vec![Bytes::from("2a45"), Bytes::from("2a45")];
-    let (mut context, tx) = build_test_context(
-        vec![1000],
-        vec![1200],
+        vec![1000, 500],
+        vec![700, 800],
         inputs_data,
         outputs_data,
         inputs_args,
