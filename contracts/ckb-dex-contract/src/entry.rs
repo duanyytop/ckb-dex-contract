@@ -102,6 +102,7 @@ fn _init_order_data() -> OrderData {
   }
 }
 
+
 fn parse_order_data(data: &[u8]) -> Result<OrderData, Error> {
   // dealt(u128) or dealt(u128) + undealt(u128) + price(u64) + order_type(u8)
   if data.len() != SUDT_LEN && data.len() != ORDER_LEN {
@@ -126,10 +127,35 @@ fn parse_order_data(data: &[u8]) -> Result<OrderData, Error> {
   })
 }
 
+fn parse_cell_data(index: usize, source: Source) -> Result<OrderData, Error> {
+  let data = match load_cell_data(index, source) {
+      Ok(data) => data,
+      Err(SysError::IndexOutOfBound) => return Err(Error::IndexOutOfBound),
+      Err(err) => return Err(err.into()),
+  };
+  let order_data = match data.len() {
+    ORDER_LEN => {
+      let mut data_buf = [0u8; ORDER_LEN];
+      data_buf.copy_from_slice(&data);
+      parse_order_data(&data_buf)?
+    }
+    SUDT_LEN => {
+      let mut data_buf = [0u8; SUDT_LEN];
+      data_buf.copy_from_slice(&data);
+      parse_order_data(&data_buf)?
+    }
+    _ => _init_order_data(),
+  };
+  Ok(order_data)
+}
+
 fn validate_order() -> Result<(), Error> {
   let script = load_script()?;
   let args: Bytes = script.args().unpack();
-  let tx = load_transaction().unwrap().raw();
+  let tx = match load_transaction() {
+    Ok(tx) => tx.raw(),
+    Err(err) => return Err(err.into()),
+  };
 
   debug!("tx is {:#}", tx);
 
@@ -137,75 +163,50 @@ fn validate_order() -> Result<(), Error> {
   let mut output_capacity = 0u64;
   let mut input_order_data: OrderData = _init_order_data();
   let mut output_order_data: OrderData = _init_order_data();
-  let outputs = tx.outputs();
-  for index in 0..outputs.len() {
-    let output_lock_args: Bytes = outputs.get(index).unwrap().lock().args().unpack();
+  for index in 0..tx.outputs().len() {
+    let output_lock_args: Bytes = match tx.outputs().get(index) {
+      Some(output) => output.lock().args().unpack(),
+      None => return Err(Error::IndexOutOfBound),
+    };
     if &output_lock_args[0..20] == &args[0..20] {
-      input_capacity = load_cell_capacity(index, Source::Input).unwrap();
-      output_capacity = load_cell_capacity(index, Source::Output).unwrap();
-
-      let data = match load_cell_data(index, Source::Input) {
-          Ok(data) => data,
-          Err(SysError::IndexOutOfBound) => break,
-          Err(err) => return Err(err.into()),
-      };
-      let mut input_data_buf = [0u8; 41];
-      input_data_buf.copy_from_slice(&data);
-      input_order_data = parse_order_data(&input_data_buf)?;
-
-      let data = match load_cell_data(index, Source::Output) {
-          Ok(data) => data,
-          Err(SysError::IndexOutOfBound) => break,
-          Err(err) => return Err(err.into()),
-      };
-
-      output_order_data = match data.len() {
-        41usize => {
-          let mut output_data_buf = [0u8; 41];
-          output_data_buf.copy_from_slice(&data);
-          parse_order_data(&output_data_buf)?
-        }
-        16usize => {
-          let mut output_data_buf = [0u8; 16];
-          output_data_buf.copy_from_slice(&data);
-          parse_order_data(&output_data_buf)?
-        }
-        _ => output_order_data,
-      };
+      input_capacity = load_cell_capacity(index, Source::Input)?;
+      output_capacity = load_cell_capacity(index, Source::Output)?;
+      input_order_data = parse_cell_data(index, Source::Input)?;
+      output_order_data = parse_cell_data(index, Source::Output)?;
       break;
     }
   }
 
-  let order_price: f32 = input_order_data.price as f32 / PRICE_PARAM;
-
-  let diff_capacity: f32;
-  let diff_sudt_amount: f32;
-
   debug!("input parse data: {}, {}", input_order_data.dealt_amount, input_order_data.undealt_amount);
   debug!("output parse data: {}, {}", output_order_data.dealt_amount, output_order_data.undealt_amount);
   debug!("input and output capacity: {:?}, {:?}", input_capacity, output_capacity);
+
+  if (input_order_data.undealt_amount == 0) {
+    return Err(Error::WrongSUDTInputAmount);
+  }
+  let order_price: f32 = input_order_data.price as f32 / PRICE_PARAM;
  
   // Buy SUDT
   if input_order_data.order_type == 0 {
     if input_capacity < output_capacity || input_order_data.dealt_amount > output_order_data.dealt_amount {
-      return Err(Error::WrongSUDTAmount);
+      return Err(Error::WrongSUDTDiffAmount);
     }
-    diff_capacity = (input_capacity - output_capacity) as f32;
-    diff_sudt_amount = (output_order_data.dealt_amount - input_order_data.dealt_amount) as f32;
+    let diff_capacity = (input_capacity - output_capacity) as f32;
+    let diff_sudt_amount = (output_order_data.dealt_amount - input_order_data.dealt_amount) as f32;
 
     if diff_sudt_amount < diff_capacity / (1.0 + FEE) / order_price {
-      return Err(Error::WrongSUDTAmount);
+      return Err(Error::WrongSUDTDiffAmount);
     }
   } else if input_order_data.order_type == 1 {
     // Sell SUDT
     if input_capacity > output_capacity || input_order_data.undealt_amount < output_order_data.undealt_amount {
-      return Err(Error::WrongSUDTAmount);
+      return Err(Error::WrongSUDTDiffAmount);
     }
-    diff_capacity = (output_capacity - input_capacity) as f32;
-    diff_sudt_amount = (input_order_data.undealt_amount - output_order_data.undealt_amount) as f32;
+    let diff_capacity = (output_capacity - input_capacity) as f32;
+    let diff_sudt_amount = (input_order_data.undealt_amount - output_order_data.undealt_amount) as f32;
 
     if diff_capacity < diff_sudt_amount / (1.0 + FEE) / order_price {
-      return Err(Error::WrongSUDTAmount);
+      return Err(Error::WrongSUDTDiffAmount);
     }
   } else {
     return Err(Error::WrongOrderType);
