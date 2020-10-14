@@ -177,12 +177,15 @@ fn validate_order() -> Result<(), Error> {
     }
   }
 
-  debug!("input parse data: {}, {}", input_order_data.dealt_amount, input_order_data.undealt_amount);
-  debug!("output parse data: {}, {}", output_order_data.dealt_amount, output_order_data.undealt_amount);
+  debug!("input dealt and undealt amount: {}, {}", input_order_data.dealt_amount, input_order_data.undealt_amount);
+  debug!("output dealt and undealt amount: {}, {}", output_order_data.dealt_amount, output_order_data.undealt_amount);
   debug!("input and output capacity: {:?}, {:?}", input_capacity, output_capacity);
 
   if (input_order_data.undealt_amount == 0) {
     return Err(Error::WrongSUDTInputAmount);
+  }
+  if (input_order_data.price == 0) {
+    return Err(Error::OrderPriceNotZero);
   }
   let order_price: f32 = input_order_data.price as f32 / PRICE_PARAM;
  

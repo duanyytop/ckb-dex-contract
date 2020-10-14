@@ -15,6 +15,7 @@ pub enum Error {
     WrongSUDTDiffAmount,
     WrongSUDTInputAmount,
     WrongOrderType,
+    OrderPriceNotZero,
 }
 
 impl From<SysError> for Error {
@@ -29,6 +30,7 @@ impl From<SysError> for Error {
             WrongSUDTDiffAmount => Self::WrongSUDTDiffAmount,
             WrongSUDTInputAmount => Self::WrongSUDTInputAmount,
             WrongOrderType => Self::WrongOrderType,
+            OrderPriceNotZero => Self::OrderPriceNotZero,
             Unknown(err_code) => panic!("unexpected sys error {}", err_code),
         }
     }
