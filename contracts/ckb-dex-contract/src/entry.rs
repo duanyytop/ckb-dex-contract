@@ -30,9 +30,27 @@ const SUDT_LEN: usize = 16;
 const PRICE_PARAM: f32 = 10000000000.0;
 
 fn new_blake2b() -> Blake2b {
-  Blake2bBuilder::new(32)
-    .personal(b"ckb-default-hash")
-    .build()
+    Blake2bBuilder::new(32)
+        .personal(b"ckb-default-hash")
+        .build()
+}
+
+fn test_validate_blake2b_sighash_all(
+    lib: &LibSecp256k1,
+    expected_pubkey_hash: &[u8],
+) -> Result<(), Error> {
+    let mut pubkey_hash = [0u8; 20];
+    lib.validate_blake2b_sighash_all(&mut pubkey_hash)
+        .map_err(|err_code| {
+            debug!("secp256k1 error {}", err_code);
+            Error::Secp256k1
+        })?;
+
+    // compare with expected pubkey_hash
+    if &pubkey_hash[..] != expected_pubkey_hash {
+        return Err(Error::WrongPubkey);
+    }
+    Ok(())
 }
 
 fn validate_signature() -> Result<(), Error> {
@@ -40,7 +58,7 @@ fn validate_signature() -> Result<(), Error> {
   let args: Bytes = script.args().unpack();
 
   if args.len() != 20 {
-    return Err(Error::Encoding);
+      return Err(Error::Encoding);
   }
 
   let witness_args = load_witness_args(0, Source::GroupInput)?;
@@ -49,38 +67,42 @@ fn validate_signature() -> Result<(), Error> {
   let mut context = CKBDLContext::<[u8; 128 * 1024]>::new();
   let lib = LibSecp256k1::load(&mut context);
 
-  let witness: Bytes = witness_args
-    .input_type()
-    .to_opt()
-    .ok_or(Error::Encoding)?
-    .unpack();
-  let mut message = [0u8; 32];
-  let mut signature = [0u8; 65];
-  let msg_len = message.len();
-  let sig_len = signature.len();
-  assert_eq!(witness.len(), message.len() + signature.len());
-  message.copy_from_slice(&witness[..msg_len]);
-  signature.copy_from_slice(&witness[msg_len..msg_len + sig_len]);
-  // recover pubkey_hash
-  let prefilled_data = lib.load_prefilled_data().map_err(|err| {
-    debug!("load prefilled data error: {}", err);
-    Error::LoadPrefilledData
-  })?;
-  let pubkey = lib
-    .recover_pubkey(&prefilled_data, &signature, &message)
-    .map_err(|err| {
-      debug!("recover pubkey error: {}", err);
-      Error::RecoverPubkey
-    })?;
-  let pubkey_hash = {
-    let mut buf = [0u8; 32];
-    let mut hasher = new_blake2b();
-    hasher.update(pubkey.as_slice());
-    hasher.finalize(&mut buf);
-    buf
-  };
-  if &args[..] != &pubkey_hash[..20] {
-    return Err(Error::WrongPubkey);
+  if witness_args.input_type().to_opt().is_none() {
+      test_validate_blake2b_sighash_all(&lib, &args)?;
+  } else {
+      let witness: Bytes = witness_args
+          .input_type()
+          .to_opt()
+          .ok_or(Error::Encoding)?
+          .unpack();
+      let mut message = [0u8; 32];
+      let mut signature = [0u8; 65];
+      let msg_len = message.len();
+      let sig_len = signature.len();
+      assert_eq!(witness.len(), message.len() + signature.len());
+      message.copy_from_slice(&witness[..msg_len]);
+      signature.copy_from_slice(&witness[msg_len..msg_len + sig_len]);
+      // recover pubkey_hash
+      let prefilled_data = lib.load_prefilled_data().map_err(|err| {
+          debug!("load prefilled data error: {}", err);
+          Error::LoadPrefilledData
+      })?;
+      let pubkey = lib
+          .recover_pubkey(&prefilled_data, &signature, &message)
+          .map_err(|err| {
+              debug!("recover pubkey error: {}", err);
+              Error::RecoverPubkey
+          })?;
+      let pubkey_hash = {
+          let mut buf = [0u8; 32];
+          let mut hasher = new_blake2b();
+          hasher.update(pubkey.as_slice());
+          hasher.finalize(&mut buf);
+          buf
+      };
+      if &args[..] != &pubkey_hash[..20] {
+          return Err(Error::WrongPubkey);
+      }
   }
 
   Ok(())
@@ -157,8 +179,6 @@ fn validate_order() -> Result<(), Error> {
     Err(err) => return Err(err.into()),
   };
 
-  debug!("tx is {:#}", tx);
-
   let mut input_capacity = 0u64;
   let mut output_capacity = 0u64;
   let mut input_order_data: OrderData = _init_order_data();
@@ -177,14 +197,14 @@ fn validate_order() -> Result<(), Error> {
     }
   }
 
-  debug!("input dealt and undealt amount: {}, {}", input_order_data.dealt_amount, input_order_data.undealt_amount);
-  debug!("output dealt and undealt amount: {}, {}", output_order_data.dealt_amount, output_order_data.undealt_amount);
-  debug!("input and output capacity: {:?}, {:?}", input_capacity, output_capacity);
+  // debug!("input dealt and undealt amount: {}, {}", input_order_data.dealt_amount, input_order_data.undealt_amount);
+  // debug!("output dealt and undealt amount: {}, {}", output_order_data.dealt_amount, output_order_data.undealt_amount);
+  // debug!("input and output capacity: {:?}, {:?}", input_capacity, output_capacity);
 
-  if (input_order_data.undealt_amount == 0) {
+  if input_order_data.undealt_amount == 0 {
     return Err(Error::WrongSUDTInputAmount);
   }
-  if (input_order_data.price == 0) {
+  if input_order_data.price == 0 {
     return Err(Error::OrderPriceNotZero);
   }
   let order_price: f32 = input_order_data.price as f32 / PRICE_PARAM;
@@ -219,13 +239,14 @@ fn validate_order() -> Result<(), Error> {
 }
 
 pub fn main() -> Result<(), Error> {
-  // let witness_args = load_witness_args(0, Source::GroupInput)?;
+  let witnesses = match load_transaction() {
+    Ok(tx) => tx.witnesses(),
+    Err(err) => return Err(err.into()),
+  };
 
-  return validate_order();
+  match witnesses.get(0) {
+    Some(witness) => validate_signature(),
+    None => validate_order(),
+  }
 
-  // if witness_args.input_type().to_opt().is_none() {
-  //   return validate_order();
-  // } else {
-  //   return validate_signature();
-  // }
 }
