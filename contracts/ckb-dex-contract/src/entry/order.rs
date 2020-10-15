@@ -7,7 +7,6 @@ use core::result::Result;
 use ckb_std::{
   ckb_constants::Source,
   ckb_types::{bytes::Bytes, prelude::*},
-  debug, default_alloc,
   error::SysError,
   high_level::{
     load_cell_capacity, load_cell_data, load_script, load_transaction,

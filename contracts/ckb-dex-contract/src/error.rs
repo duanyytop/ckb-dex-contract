@@ -27,11 +27,6 @@ impl From<SysError> for Error {
             ItemMissing => Self::ItemMissing,
             LengthNotEnough(_) => Self::LengthNotEnough,
             Encoding => Self::Encoding,
-            WrongDataLengthOrFormat => Self::WrongDataLengthOrFormat,
-            WrongSUDTDiffAmount => Self::WrongSUDTDiffAmount,
-            WrongSUDTInputAmount => Self::WrongSUDTInputAmount,
-            WrongOrderType => Self::WrongOrderType,
-            OrderPriceNotZero => Self::OrderPriceNotZero,
             Unknown(err_code) => panic!("unexpected sys error {}", err_code),
         }
     }
