@@ -8,15 +8,18 @@ pub enum Error {
     LengthNotEnough,
     Encoding,
     // Add customized errors here...
-    Secp256k1,
+    Secp256k1 = 5,
     WrongPubkey,
     LoadPrefilledData,
     RecoverPubkey,
     WrongDataLengthOrFormat,
-    WrongSUDTDiffAmount,
+    WrongSUDTDiffAmount = 10,
+    WrongDiffCapacity,
     WrongSUDTInputAmount,
     WrongOrderType,
     OrderPriceNotZero,
+    InputsAndOutputsAmountNotSame = 15,
+    WrongSwapAmount,
 }
 
 impl From<SysError> for Error {
