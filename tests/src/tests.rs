@@ -494,7 +494,7 @@ fn test_ckb_sudt_all_order_price_not_match() {
 
 #[test]
 fn test_ckb_sudt_all_order_cell_data_format_error() {
-    // input1: sudt_amount(0sudt 0x0u128) + dealt_amount(0sudt 0x0u128) + undealt_amount(150sudt 0x37E11D600u128) 
+    // input1: sudt_amount(0sudt 0x0u128 (error: 126 bits)) + dealt_amount(0sudt 0x0u128) + undealt_amount(150sudt 0x37E11D600u128) 
     // + price(5*10^10 0xBA43B7400u64) + buy(00)
 
     // input2: sudt_amount(500sudt 0xBA43B7400u128) + dealt_amount(0sudt 0x0u128) + undealt_amount(150sudt 0x37E11D600u128) 
