@@ -6,13 +6,12 @@ use core::result::Result;
 // https://nervosnetwork.github.io/ckb-std/riscv64imac-unknown-none-elf/doc/ckb_std/index.html
 use ckb_std::{
   ckb_constants::Source,
-  ckb_types::{bytes::Bytes, prelude::*},
+  ckb_types::prelude::*,
   error::SysError,
   high_level::{
-    load_cell_capacity, load_cell_data, load_script, load_transaction
+    load_cell_capacity, load_cell_data, load_transaction, load_input, load_cell_type_hash
   },
 };
-
 use crate::error::Error;
 
 const FEE: f64 = 0.003;
@@ -90,39 +89,22 @@ fn parse_cell_data(index: usize, source: Source) -> Result<OrderData, Error> {
   Ok(order_data)
 }
 
-pub fn validate() -> Result<(), Error> {
-  let script = load_script()?;
-  let args: Bytes = script.args().unpack();
-  let tx = match load_transaction() {
-    Ok(tx) => tx.raw(),
-    Err(err) => return Err(err.into()),
+fn validate_order_cells(index: usize) -> Result<(), Error> {
+  let input_type_hash = match load_cell_type_hash(index, Source::Input) {
+    Ok(hash) => hash,
+    Err(err) => return Err(err.into())
   };
-
-  if tx.inputs().len() != tx.outputs().len() {
-    return Err(Error::InputsAndOutputsAmountNotSame);
+  let output_type_hash = match load_cell_type_hash(index, Source::Output) {
+    Ok(hash) => hash,
+    Err(err) => return Err(err.into())
+  };
+  if input_type_hash != output_type_hash {
+    return Err(Error::TypeHashNotSame);
   }
-
-  let mut input_capacity = 0u64;
-  let mut output_capacity = 0u64;
-  let mut input_order: OrderData = _init_order_data();
-  let mut output_order: OrderData = _init_order_data();
-  for index in 0..tx.outputs().len() {
-    let output_lock_args: Bytes = match tx.outputs().get(index) {
-      Some(output) => output.lock().args().unpack(),
-      None => return Err(Error::IndexOutOfBound),
-    };
-    if &output_lock_args[0..20] == &args[0..20] {
-      input_capacity = load_cell_capacity(index, Source::Input)?;
-      output_capacity = load_cell_capacity(index, Source::Output)?;
-      input_order = parse_cell_data(index, Source::Input)?;
-      output_order = parse_cell_data(index, Source::Output)?;
-      break;
-    }
-  }
-
-  // debug!("input dealt and undealt amount: {}, {}", input_order.dealt_amount, input_order.undealt_amount);
-  // debug!("output dealt and undealt amount: {}, {}", output_order.dealt_amount, output_order.undealt_amount);
-  // debug!("input and output capacity: {:?}, {:?}", input_capacity, output_capacity);
+  let input_capacity = load_cell_capacity(index, Source::Input)?;
+  let output_capacity = load_cell_capacity(index, Source::Output)?;
+  let input_order = parse_cell_data(index, Source::Input)?;
+  let output_order = parse_cell_data(index, Source::Output)?;
 
   if input_order.undealt_amount == 0 {
     return Err(Error::WrongSUDTInputAmount);
@@ -209,4 +191,37 @@ pub fn validate() -> Result<(), Error> {
   }
 
   Ok(())
+}
+
+
+pub fn validate() -> Result<(), Error> {
+  let tx = match load_transaction() {
+    Ok(tx) => tx.raw(),
+    Err(err) => return Err(err.into()),
+  };
+
+  let inputs_count = tx.inputs().len();
+  if inputs_count != tx.outputs().len() {
+    return Err(Error::InputsAndOutputsAmountNotSame);
+  }
+
+  for group_index in 0..inputs_count {
+    match load_input(group_index, Source::GroupInput) {
+      Ok(group_input) => {
+        for index in 0..inputs_count {
+          let input = load_input(index, Source::Input).unwrap();
+          if group_input.as_slice() == input.as_slice() {
+            match validate_order_cells(index) {
+              Ok(_) => break,
+              Err(err) => return Err(err)
+            };
+          }
+        }
+      },
+      Err(_) => break,
+    };
+  }
+  
+  Ok(())
+
 }
