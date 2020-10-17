@@ -7,7 +7,20 @@ pub enum Error {
     ItemMissing,
     LengthNotEnough,
     Encoding,
-    Amount,
+    // Add customized errors here...
+    Secp256k1 = 5,
+    WrongPubkey,
+    LoadPrefilledData,
+    RecoverPubkey,
+    WrongDataLengthOrFormat,
+    WrongSUDTDiffAmount = 10,
+    WrongDiffCapacity,
+    WrongSUDTInputAmount,
+    WrongOrderType,
+    OrderPriceNotZero,
+    InputsAndOutputsAmountNotSame = 15,
+    WrongSwapAmount,
+    TypeHashNotSame,
 }
 
 impl From<SysError> for Error {
