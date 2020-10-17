@@ -17,14 +17,19 @@ mod order;
 default_alloc!(4 * 1024, 2048 * 1024, 64);
 
 pub fn main() -> Result<(), Error> {
-  let witnesses = match load_transaction() {
-    Ok(tx) => tx.witnesses(),
+  return match load_transaction() {
+    Ok(tx) => {
+      match tx.witnesses().get(0) {
+        Some(witness) => {
+          match witness.item_count() {
+            0 => order::validate(),
+            _ => signature::validate()
+          }
+        },
+        None => order::validate(),
+      }
+    },
     Err(err) => return Err(err.into()),
   };
-
-  match witnesses.get(0) {
-    Some(_) => signature::validate(),
-    None => order::validate(),
-  }
 
 }

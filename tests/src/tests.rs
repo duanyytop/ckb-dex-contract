@@ -124,6 +124,10 @@ fn build_test_context(
     }
 
     let dex_script_dep = CellDep::new_builder().out_point(dex_out_point).build();
+    let mut witnesses = vec![];
+    for _ in 0..inputs.len() {
+        witnesses.push(Bytes::new())
+    }
 
     // build transaction
     let tx = TransactionBuilder::default()
@@ -131,6 +135,7 @@ fn build_test_context(
         .outputs(outputs)
         .outputs_data(outputs_data.pack())
         .cell_dep(dex_script_dep)
+        .witnesses(witnesses.pack())
         .build();
     (context, tx)
 }
