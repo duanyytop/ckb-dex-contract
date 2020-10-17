@@ -198,13 +198,13 @@ fn test_ckb_sudt_partial_order() {
 #[test]
 fn test_ckb_sudt_all_order1() {
     // input1: sudt_amount(50sudt 0x12A05F200u128) + dealt_amount(50sudt 0x12A05F200u128) + undealt_amount(150sudt 0x37E11D600u128) 
-    // + price(5*10^10 0xBA43B7400u64) + buy(00)
+    // + price(5.2*10^10 0xC1B710800u64) + buy(00)
 
     // input2: sudt_amount(500sudt 0xBA43B7400u128) + dealt_amount(100sudt 0x2540BE400u128) + undealt_amount(150sudt 0x37E11D600u128) 
     // + price(5*10^10 0xBA43B7400u64) + sell(01)
     let inputs_data = vec![
         Bytes::from(
-            hex::decode("00F2052A01000000000000000000000000F2052A01000000000000000000000000D6117E03000000000000000000000000743BA40B00000000").unwrap(),
+            hex::decode("00F2052A01000000000000000000000000F2052A01000000000000000000000000D6117E0300000000000000000000000008711B0C00000000").unwrap(),
         ),
         Bytes::from(
             hex::decode("00743BA40B000000000000000000000000E40B5402000000000000000000000000D6117E03000000000000000000000000743BA40B00000001").unwrap(),
