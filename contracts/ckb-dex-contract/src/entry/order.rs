@@ -19,7 +19,7 @@ const ORDER_LEN: usize = 57;
 const SUDT_LEN: usize = 16;
 // real price * 10 ^ 10 = cell price data
 const PRICE_PARAM: f64 = 10000000000.0;
-const PRECISION_NUMBER: f64 = 0.001;
+const PRECISION_NUMBER: f64 = 0.0001;
 
 struct OrderData {
   sudt_amount: u128,
@@ -151,8 +151,7 @@ fn validate_order_cells(index: usize) -> Result<(), Error> {
       return Err(Error::WrongSUDTDiffAmount);
     }
 
-    // Float numbers have precision errors
-    if diff_undealt_amount - diff_capacity / (1.0 + FEE) / order_price > PRECISION_NUMBER {
+    if diff_undealt_amount * (1.0 + FEE) * order_price + PRECISION_NUMBER < diff_capacity {
       return Err(Error::WrongSwapAmount);
     }
   } else if input_order.order_type == 1 {
@@ -178,12 +177,12 @@ fn validate_order_cells(index: usize) -> Result<(), Error> {
     let diff_capacity = (output_capacity - input_capacity) as f64;
     let diff_sudt_amount = (input_order.sudt_amount - output_order.sudt_amount) as f64;
     
-    // Float numbers have precision errors
+    // Floating point numbers have precision errors
     if diff_sudt_amount - diff_undealt_amount * (1.0 + FEE) > PRECISION_NUMBER {
       return Err(Error::WrongSUDTDiffAmount);
     }
 
-    if diff_capacity < diff_sudt_amount / (1.0 + FEE) / order_price {
+    if diff_capacity * (1.0 + FEE) + PRECISION_NUMBER < diff_sudt_amount * order_price {
       return Err(Error::WrongSwapAmount);
     }
   } else {
