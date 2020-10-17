@@ -20,6 +20,7 @@ const ORDER_LEN: usize = 57;
 const SUDT_LEN: usize = 16;
 // real price * 10 ^ 10 = cell price data
 const PRICE_PARAM: f64 = 10000000000.0;
+const PRECISION_NUMBER: f64 = 0.001;
 
 struct OrderData {
   sudt_amount: u128,
@@ -129,6 +130,17 @@ pub fn validate() -> Result<(), Error> {
   if input_order.price == 0 {
     return Err(Error::OrderPriceNotZero);
   }
+
+  if output_order.dealt_amount != 0 {
+    if input_order.order_type != output_order.order_type {
+      return Err(Error::WrongOrderType);
+    }
+
+    if input_order.dealt_amount > output_order.dealt_amount {
+      return Err(Error::WrongSUDTDiffAmount);
+    }
+  }
+
   let order_price: f64 = input_order.price as f64 / PRICE_PARAM;
  
   // Buy SUDT
@@ -142,10 +154,7 @@ pub fn validate() -> Result<(), Error> {
 
     let diff_undealt_amount = (input_order.undealt_amount - output_order.undealt_amount) as f64;
 
-    if output_order.dealt_amount != 0 && output_order.undealt_amount != 0 {
-      if input_order.dealt_amount > output_order.dealt_amount {
-        return Err(Error::WrongSUDTDiffAmount);
-      }
+    if output_order.dealt_amount != 0 {
       let diff_dealt_amount = (output_order.dealt_amount - input_order.dealt_amount) as f64;
 
       if diff_dealt_amount != diff_undealt_amount {
@@ -160,8 +169,8 @@ pub fn validate() -> Result<(), Error> {
       return Err(Error::WrongSUDTDiffAmount);
     }
 
-    // Floating point numbers have precision errors
-    if diff_undealt_amount - diff_capacity / (1.0 + FEE) / order_price > 0.001{
+    // Float numbers have precision errors
+    if diff_undealt_amount - diff_capacity / (1.0 + FEE) / order_price > PRECISION_NUMBER {
       return Err(Error::WrongSwapAmount);
     }
   } else if input_order.order_type == 1 {
@@ -176,10 +185,7 @@ pub fn validate() -> Result<(), Error> {
 
     let diff_undealt_amount = (input_order.undealt_amount - output_order.undealt_amount) as f64;
 
-    if output_order.dealt_amount != 0 || output_order.undealt_amount != 0 {
-      if input_order.dealt_amount > output_order.dealt_amount {
-        return Err(Error::WrongSUDTDiffAmount);
-      }
+    if output_order.dealt_amount != 0 {
       let diff_dealt_amount = (output_order.dealt_amount - input_order.dealt_amount) as f64;
 
       if diff_dealt_amount != diff_undealt_amount {
@@ -190,8 +196,8 @@ pub fn validate() -> Result<(), Error> {
     let diff_capacity = (output_capacity - input_capacity) as f64;
     let diff_sudt_amount = (input_order.sudt_amount - output_order.sudt_amount) as f64;
     
-    // Floating point numbers have precision errors
-    if diff_sudt_amount - diff_undealt_amount * (1.0 + FEE) > 0.001 {
+    // Float numbers have precision errors
+    if diff_sudt_amount - diff_undealt_amount * (1.0 + FEE) > PRECISION_NUMBER {
       return Err(Error::WrongSUDTDiffAmount);
     }
 
