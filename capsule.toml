@@ -8,6 +8,9 @@ version = "0.4.1 303dfcb"
 # path of deployment config file
 deployment = "deployment.toml"
 
+# capsule version
+version = "0.4.1 303dfcb"
+
 [[contracts]]
 name = "ckb-dex-contract"
 template_type = "Rust"
