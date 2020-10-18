@@ -327,11 +327,11 @@ fn test_ckb_sudt_all_order_capacity_error() {
         Bytes::from(hex::decode("7e7a30e75685e4d332f69220e925575dd9b84676").unwrap()),
         Bytes::from(hex::decode("a53ce751e2adb698ca10f8c1b8ebbee20d41a842").unwrap()),
     ];
-    // output1 capacity = 2000 - 750 * (1 + 0.003) = 1247.75 not 1247.95 (output1 capacity amount is error)
+    // output1 capacity = 2000 - 750 * (1 + 0.003) = 1247.75
     // output2 capacity = 800 + 740 = 1540 not 1530 (output2 capacity amount is error)
     let (mut context, tx) = build_test_context(
         vec![200000000000, 80000000000],
-        vec![124795000000, 153000000000],
+        vec![124775000000, 153000000000],
         inputs_data,
         outputs_data,
         inputs_args,
@@ -376,11 +376,11 @@ fn test_ckb_sudt_all_order_cell_amount_error() {
     let outputs_args = vec![Bytes::from(
         hex::decode("7e7a30e75685e4d332f69220e925575dd9b84676").unwrap(),
     )];
-    // output1 capacity = 2000 - 750 * (1 + 0.003) = 1247.75 not 1247.55 (output1 capacity amount is error)
-    // output2 capacity = 800 + 740 = 1540 (output2 capacity amount is error)
+    // output1 capacity = 2000 - 750 * (1 + 0.003) = 1247.75
+    // output2 should not null (this is an error)
     let (mut context, tx) = build_test_context(
         vec![200000000000, 80000000000],
-        vec![204755000000],
+        vec![204775000000],
         inputs_data,
         outputs_data,
         inputs_args,
@@ -390,7 +390,7 @@ fn test_ckb_sudt_all_order_cell_amount_error() {
     let tx = context.complete_tx(tx);
 
     let err = context.verify_tx(&tx, MAX_CYCLES).unwrap_err();
-    let script_cell_index = 0;
+    let script_cell_index = 1;
     assert_error_eq!(
         err,
         ScriptError::ValidationFailure(15).input_lock_script(script_cell_index)
