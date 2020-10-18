@@ -9,9 +9,10 @@ use ckb_std::{
   ckb_constants::Source,
   high_level::load_witness_args,
 };
-use crate::error::Error;
 
-mod signature;
+use share::error::Error;
+use share::signature;
+
 mod order;
 
 // Alloc 4K fast HEAP + 2M HEAP to receives PrefilledData

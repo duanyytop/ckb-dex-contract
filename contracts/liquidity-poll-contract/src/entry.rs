@@ -13,7 +13,7 @@ use ckb_std::{
     ckb_types::{bytes::Bytes, prelude::*},
 };
 
-use crate::error::Error;
+use share::error::Error;
 
 pub fn main() -> Result<(), Error> {
     // remove below examples and write your code here

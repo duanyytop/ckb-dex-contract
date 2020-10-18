@@ -11,7 +11,6 @@
 #![feature(panic_info_message)]
 
 mod entry;
-mod error;
 
 ckb_std::entry!(program_entry);
 
