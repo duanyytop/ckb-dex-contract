@@ -1,13 +1,11 @@
 [package]
-name = "tests"
+name = "share"
 version = "0.1.0"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ckb-tool = "0.2"
-ckb-testtool = "0.2"
-ckb-system-scripts = "0.5"
-rand = "0.7"
-hex = "0.4"
+ckb-std = "0.6.0"
+ckb-lib-secp256k1 = { path = "../ckb-lib-secp256k1" }
+blake2b-ref = "0.1"

@@ -12,7 +12,8 @@ use ckb_std::{
     load_cell_capacity, load_cell_data, load_transaction, load_input, load_cell_type_hash
   },
 };
-use crate::error::Error;
+
+use share::error::Error;
 
 const FEE: f64 = 0.003;
 const ORDER_LEN: usize = 57;

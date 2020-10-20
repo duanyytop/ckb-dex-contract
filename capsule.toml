@@ -4,13 +4,14 @@
 # workspace_dir = "."
 
 # capsule version
-version = "0.4.1 303dfcb"
+version = "0.4.2"
 # path of deployment config file
 deployment = "deployment.toml"
 
-# capsule version
-version = "0.4.1 303dfcb"
-
 [[contracts]]
 name = "ckb-dex-contract"
+template_type = "Rust"
+
+[[contracts]]
+name = "liquidity-poll-contract"
 template_type = "Rust"
