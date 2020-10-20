@@ -18,7 +18,7 @@ const ERROR_EMPTY_ARGS: i8 = 5;
 fn test_success() {
     // deploy contract
     let mut context = Context::default();
-    let contract_bin: Bytes = Loader::default().load_binary("{{ name }}");
+    let contract_bin: Bytes = Loader::default().load_binary("liquidity-poll-contract");
     let out_point = context.deploy_cell(contract_bin);
 
     // prepare scripts
@@ -73,7 +73,7 @@ fn test_success() {
 fn test_empty_args() {
     // deploy contract
     let mut context = Context::default();
-    let contract_bin: Bytes = Loader::default().load_binary("{{ name }}");
+    let contract_bin: Bytes = Loader::default().load_binary("liquidity-poll-contract");
     let out_point = context.deploy_cell(contract_bin);
 
     // prepare scripts

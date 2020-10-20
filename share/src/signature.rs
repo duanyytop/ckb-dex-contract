@@ -7,7 +7,7 @@ use core::result::Result;
 use ckb_std::{
     ckb_constants::Source,
     ckb_types::{bytes::Bytes, prelude::*},
-    debug,
+    // debug,
     dynamic_loading::CKBDLContext,
     high_level::{load_script, load_witness_args},
 };
@@ -29,8 +29,8 @@ fn test_validate_blake2b_sighash_all(
 ) -> Result<(), Error> {
     let mut pubkey_hash = [0u8; 20];
     lib.validate_blake2b_sighash_all(&mut pubkey_hash)
-        .map_err(|err_code| {
-            debug!("secp256k1 error {}", err_code);
+        .map_err(|_| {
+            // debug!("secp256k1 error {}", err_code);
             Error::Secp256k1
         })?;
 
@@ -71,14 +71,14 @@ pub fn validate() -> Result<(), Error> {
         message.copy_from_slice(&witness[..msg_len]);
         signature.copy_from_slice(&witness[msg_len..msg_len + sig_len]);
         // recover pubkey_hash
-        let prefilled_data = lib.load_prefilled_data().map_err(|err| {
-            debug!("load prefilled data error: {}", err);
+        let prefilled_data = lib.load_prefilled_data().map_err(|_| {
+            // debug!("load prefilled data error: {}", err);
             Error::LoadPrefilledData
         })?;
         let pubkey = lib
             .recover_pubkey(&prefilled_data, &signature, &message)
-            .map_err(|err| {
-                debug!("recover pubkey error: {}", err);
+            .map_err(|_| {
+                // debug!("recover pubkey error: {}", err);
                 Error::RecoverPubkey
             })?;
         let pubkey_hash = {

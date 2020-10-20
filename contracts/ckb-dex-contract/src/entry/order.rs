@@ -74,20 +74,19 @@ fn parse_cell_data(index: usize, source: Source) -> Result<OrderData, Error> {
       Err(SysError::IndexOutOfBound) => return Err(Error::IndexOutOfBound),
       Err(err) => return Err(err.into()),
   };
-  let order_data = match data.len() {
+  return match data.len() {
     ORDER_LEN => {
       let mut data_buf = [0u8; ORDER_LEN];
       data_buf.copy_from_slice(&data);
-      parse_order_data(&data_buf)?
+      Ok(parse_order_data(&data_buf)?)
     }
     SUDT_LEN => {
       let mut data_buf = [0u8; SUDT_LEN];
       data_buf.copy_from_slice(&data);
-      parse_order_data(&data_buf)?
+      Ok(parse_order_data(&data_buf)?)
     }
-    _ => _init_order_data(),
+    _ => Err(Error::WrongDataLengthOrFormat),
   };
-  Ok(order_data)
 }
 
 fn validate_order_cells(index: usize) -> Result<(), Error> {
